@@ -36,6 +36,8 @@ pygame.key.set_repeat(True)
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
+        self.crouching = False
+
         self.image = pygame.Surface((25, 25))
         self.image.fill(black)
         self.rect = self.image.get_rect(center=(width / 2, height / 2))
@@ -50,6 +52,8 @@ class Player(pygame.sprite.Sprite):
         self.moving_down = False
         self.grounded = False
         self.attached_to_wall = False  # Ny variabel for å sjekke om spilleren er festet til veggen
+        self.horizontal_jump_right = 5
+        self.horizontal_jump_left = -5
 
         # Flytt variablene inn i Player-klassen
         self.player_on_right = False
@@ -78,10 +82,22 @@ class Player(pygame.sprite.Sprite):
             if self.moving_left:
                 self.rect.x -= self.speed
 
+
         # Gravitasjon hvis ikke festet til vegg
         if not self.grounded and not self.attached_to_wall:
             self.vertical_speed += self.gravity
             self.rect.y += self.vertical_speed
+
+
+        # Gravitasjon høyere
+        if not self.grounded and self.attached_to_wall and self.player_on_right:
+            self.vertical_speed += self.gravity
+            self.rect.x += self.vertical_speed
+
+        # Gravitasjon venstere
+        if not self.grounded and self.attached_to_wall and self.player_on_left:
+            self.vertical_speed += self.gravity
+            self.rect.x -= self.vertical_speed
 
         # Sjekk bunnkollisjon
         if self.rect.bottom >= height:
@@ -94,6 +110,7 @@ class Player(pygame.sprite.Sprite):
     def movement(self, keys):
         self.moving_right = keys[pygame.K_d] and not self.attached_to_wall and self.rect.right < width
         self.moving_left = keys[pygame.K_a] and not self.attached_to_wall and self.rect.left > 0
+
 
         # Tillat vertikal bevegelse når festet til vegg
         if self.attached_to_wall:
@@ -112,7 +129,7 @@ class Player(pygame.sprite.Sprite):
             self.vertical_speed = self.jump_strength
             self.grounded = False
         elif self.attached_to_wall:
-            # Hopp horisontalt ut fra veggen
+            #self.horizontal_jump = 10
             if self.player_on_right:
                 self.vertical_speed = self.jump_strength
                 self.rect.x -= self.wall_jump_strength
@@ -120,6 +137,7 @@ class Player(pygame.sprite.Sprite):
                 self.vertical_speed = self.jump_strength
                 self.rect.x += self.wall_jump_strength
             self.attached_to_wall = False  # Løsne fra veggen etter hopp
+
 
 
 class Obstacle(pygame.sprite.Sprite):
@@ -131,21 +149,24 @@ class Obstacle(pygame.sprite.Sprite):
 
     def check_collision(self, player):
         # Bare tilbakestill sideflag når spilleren ikke er festet til veggen
+
+        if abs(player.vertical_speed) > 1:
+            player.player_on_left = player.player_on_right = player.attached_to_wall = False
         if not player.attached_to_wall:
-            player.player_on_left = player.player_on_right = player.player_on_top = player.player_on_bottom = False
+            player.player_on_left = player.player_on_right = False
 
         # Kollisjonslogikk for sidene
         if self.rect.colliderect(player.rect):
             if player.rect.right > self.rect.left and player.rect.left < self.rect.left:
                 player.rect.right = self.rect.left
-                player.grounded = True
+                player.grounded = False #TODO
                 player.attached_to_wall = True  # Fest til vegg
                 player.player_on_right = True
                 player.vertical_speed = 0
 
             elif player.rect.left < self.rect.right and player.rect.right > self.rect.right:
                 player.rect.left = self.rect.right
-                player.grounded = True
+                player.grounded = False #TODO
                 player.attached_to_wall = True  # Fest til vegg
                 player.player_on_left = True
                 player.vertical_speed = 0
@@ -164,6 +185,7 @@ class Obstacle(pygame.sprite.Sprite):
                 player.player_on_bottom = True
 
 
+
 def update_cycle(keys):
     player_sprite.update()
     player.movement(keys)
@@ -175,8 +197,12 @@ def update_cycle(keys):
 player = Player()
 player_sprite = pygame.sprite.GroupSingle(player)
 obstacle_sprite = pygame.sprite.Group(
-    Obstacle(500, 50, 600, 600),
-    Obstacle(50, 500, 100, 200)
+
+    Obstacle(50, 500, 100, 200),
+    Obstacle(50,500, 700,100),
+    Obstacle(100, 500, 1000, 100),
+    Obstacle(50, 500, 400, 200),
+    Obstacle(500, 50, 800, 600)
 )
 
 # Hovedspilleløkken
